@@ -31,6 +31,7 @@ interface FolderWidgetProps {
   isTeamProject: boolean;
   onToggleCommentPane: (widgetId: string | null) => void;
   onMoveWidget: (widgetId: string, newParentId: string | null, dropPosition?: { x: number, y: number, w: number, h: number }) => void;
+  draggingWidgetId: string | null;
 }
 
 const FolderWidget: React.FC<FolderWidgetProps> = ({ 
@@ -38,7 +39,7 @@ const FolderWidget: React.FC<FolderWidgetProps> = ({
     onRemoveWidget, onCopyWidget, onInitiateAddWidget, onChildrenLayoutChange,
     onDragStart, onDragStop, onResizeStop, isAnythingDragging, isMobile,
     projectUsers, currentUser, currentUserRole, isTeamProject, onToggleFolder,
-    onToggleCommentPane, onMoveWidget
+    onToggleCommentPane, onMoveWidget, draggingWidgetId
 }) => {
   const data = widget.data as FolderData;
   const { isCollapsed, childrenLayouts } = data;
@@ -49,8 +50,12 @@ const FolderWidget: React.FC<FolderWidgetProps> = ({
     return allWidgets.filter(w => w.parentId === widget.id);
   }, [allWidgets, widget.id]);
 
+  const allFolders = useMemo(() => allWidgets.filter(w => w.type === WidgetType.Folder), [allWidgets]);
+
   const canAddWidgetsToFolder = currentUserRole === 'owner' || currentUserRole === 'editor';
   const isOverallEditable = currentUserRole === 'owner' || currentUserRole === 'editor' || currentUserRole === 'manager';
+  
+  const isThisFolderBeingDragged = isAnythingDragging && draggingWidgetId === widget.id;
 
 
   const handleLayoutUpdate = (layout: Layout[], allLayouts: {[key: string]: Layout[]}) => {
@@ -139,7 +144,7 @@ const FolderWidget: React.FC<FolderWidgetProps> = ({
                 </button>
             </div>
           ) : (
-            <div className="flex-grow nested-grid px-2">
+            <div className={`flex-grow nested-grid px-2 ${isThisFolderBeingDragged ? 'pointer-events-none' : ''}`}>
               <ResponsiveGridLayout
                   className={`layout ${isAnythingDragging ? 'is-dragging' : ''}`}
                   layouts={processedChildrenLayouts}
@@ -187,6 +192,8 @@ const FolderWidget: React.FC<FolderWidgetProps> = ({
                               isTeamProject={isTeamProject}
                               isWidgetEditable={isWidgetEditable}
                               onToggleCommentPane={onToggleCommentPane}
+                              onMoveWidget={onMoveWidget}
+                              allFolders={allFolders}
                           >
                             <Suspense fallback={<div className="w-full h-full flex items-center justify-center text-xs text-gray-400">Загрузка...</div>}>
                                 {renderWidget(child, allWidgets, isWidgetEditable)}

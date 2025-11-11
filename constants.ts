@@ -52,7 +52,7 @@ export const WIDGET_DEFAULTS: { [key in WidgetType]: WidgetDefaults } = {
       color: '#fccb90',
       color2: '#d57eeb',
     },
-    w: 6, h: 5, minW: 4, minH: 5,
+    w: 6, h: 6, minW: 4, minH: 6,
   },
   [WidgetType.Text]: {
     data: {
@@ -117,7 +117,7 @@ export const WIDGET_DEFAULTS: { [key in WidgetType]: WidgetDefaults } = {
         },
       ],
     } as TableData,
-    w: 5, h: 5, minW: 4, minH: 4,
+    w: 5, h: 5, minW: 5, minH: 4,
   },
   [WidgetType.Goal]: {
     data: {
@@ -126,7 +126,7 @@ export const WIDGET_DEFAULTS: { [key in WidgetType]: WidgetDefaults } = {
       dueDate: null,
       completed: false,
     },
-    w: 4, h: 4, minW: 3, minH: 2,
+    w: 4, h: 4, minW: 4, minH: 3,
   },
   [WidgetType.File]: {
     data: {

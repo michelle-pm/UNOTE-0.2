@@ -12,7 +12,8 @@ import {
     reauthenticateWithCredential,
     EmailAuthProvider
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, addDoc, collection } from 'firebase/firestore';
+// FIX: Import `serverTimestamp` and `Timestamp` to correctly handle date fields.
+import { doc, setDoc, getDoc, addDoc, collection, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 
@@ -38,16 +39,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             const userDocRef = doc(db, "users", firebaseUser.uid);
             const userDoc = await getDoc(userDocRef);
             if (userDoc.exists()) {
-                setUser({ uid: firebaseUser.uid, ...userDoc.data() } as User);
+                // FIX: Ensure the `id` from the document snapshot is included in the user object.
+                setUser({ id: userDoc.id, uid: firebaseUser.uid, ...userDoc.data() } as User);
             } else {
                  // This might happen if Firestore doc creation failed after auth creation
+                // FIX: Create a complete `User` object for the local state, including `id` and `createdAt`.
                 const newUser: User = { 
+                    id: firebaseUser.uid,
                     uid: firebaseUser.uid, 
                     displayName: firebaseUser.displayName || 'Пользователь', 
                     email: firebaseUser.email!,
-                    photoURL: firebaseUser.photoURL || undefined
+                    photoURL: firebaseUser.photoURL || undefined,
+                    createdAt: Timestamp.now(),
                 };
-                await setDoc(userDocRef, { displayName: newUser.displayName, email: newUser.email, photoURL: newUser.photoURL });
+                // FIX: Write a server-side timestamp to Firestore for consistency.
+                await setDoc(userDocRef, { displayName: newUser.displayName, email: newUser.email, photoURL: newUser.photoURL, createdAt: serverTimestamp() });
                 setUser(newUser);
             }
         } else {
@@ -71,7 +77,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     await updateProfile(firebaseUser, { displayName: name });
     
-    const newUser: Omit<User, 'uid' | 'photoURL'> = { displayName: name, email };
+    // FIX: Remove incorrect type annotation and add `createdAt` to ensure the object matches Firestore expectations.
+    const newUser = { 
+        displayName: name, 
+        email,
+        createdAt: serverTimestamp(),
+    };
     await setDoc(doc(db, "users", firebaseUser.uid), newUser);
     
     // Create a default project for the new user in Firestore

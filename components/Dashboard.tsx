@@ -70,7 +70,7 @@ const DashboardGrid = React.memo(({
     onLayoutChange, onDragStart, onDragStop, onResizeStop,
     onRemoveWidget, onCopyWidget, onUpdateWidgetData, onToggleFolder,
     onInitiateAddWidget, renderWidget, synchronizedWidgets, currentUser, currentUserRole,
-    projectUsers, project, onToggleCommentPane
+    projectUsers, project, onToggleCommentPane, onMoveWidget, allFolders,
 }: any) => {
     return (
         <ResponsiveGridLayout
@@ -119,6 +119,8 @@ const DashboardGrid = React.memo(({
                             isTeamProject={project.isTeamProject}
                             isWidgetEditable={isWidgetEditable}
                             onToggleCommentPane={onToggleCommentPane}
+                            onMoveWidget={onMoveWidget}
+                            allFolders={allFolders}
                         >
                             <Suspense fallback={<div className="w-full h-full flex items-center justify-center text-gray-400">Загрузка виджета...</div>}>
                                 {renderWidget(widget, synchronizedWidgets, isWidgetEditable)}
@@ -144,6 +146,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const { widgets, layouts } = project;
   const [commentPanePosition, setCommentPanePosition] = useState<{ top: number; left: number; transformOrigin: string } | null>(null);
 
+  const allFolders = useMemo(() => project.widgets.filter(w => w.type === WidgetType.Folder), [project.widgets]);
 
   useEffect(() => {
       const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -329,11 +332,12 @@ const Dashboard: React.FC<DashboardProps> = ({
             isTeamProject={project.isTeamProject}
             onToggleCommentPane={onToggleCommentPane}
             onMoveWidget={onMoveWidget}
+            draggingWidgetId={draggingWidgetId}
         />;
       default:
         return <div>Unknown widget type</div>;
     }
-  }, [onUpdateWidgetData, onRemoveWidget, onCopyWidget, onInitiateAddWidget, onChildrenLayoutChange, onDragStart, onDragStop, onResizeStop, setDraggingWidgetId, isAnythingDragging, isMobile, projectUsers, currentUser, currentUserRole, project, onToggleFolder, onToggleCommentPane, onMoveWidget]);
+  }, [onUpdateWidgetData, onRemoveWidget, onCopyWidget, onInitiateAddWidget, onChildrenLayoutChange, onDragStart, onDragStop, onResizeStop, setDraggingWidgetId, isAnythingDragging, isMobile, projectUsers, currentUser, currentUserRole, project, onToggleFolder, onToggleCommentPane, onMoveWidget, draggingWidgetId]);
   
   const processedLayouts = useMemo(() => {
     const newLayouts = JSON.parse(JSON.stringify(layouts));
@@ -400,6 +404,8 @@ const Dashboard: React.FC<DashboardProps> = ({
             projectUsers={projectUsers}
             project={project}
             onToggleCommentPane={onToggleCommentPane}
+            onMoveWidget={onMoveWidget}
+            allFolders={allFolders}
         />
 
        <AnimatePresence>

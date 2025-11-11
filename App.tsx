@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Layout } from 'react-grid-layout';
 import { v4 as uuidv4 } from 'uuid';
@@ -57,32 +58,32 @@ const cleanAllLayouts = (allLayouts: { [key: string]: Layout[] }): { [key: strin
     return cleaned;
 };
 
+const cleanWidgetForSerialization = (w: Widget): Widget => {
+    // Create a shallow copy of the data to prevent side effects on the original state object.
+    const dataCopy = { ...w.data };
+
+    const cleaned: Widget = {
+        id: w.id,
+        type: w.type,
+        data: dataCopy,
+        minW: w.minW,
+        minH: w.minH,
+    };
+    if (w.parentId) cleaned.parentId = w.parentId;
+    if (w.assignedUser !== undefined) cleaned.assignedUser = w.assignedUser;
+
+    if (cleaned.type === WidgetType.Folder) {
+        const folderData = cleaned.data as FolderData;
+        if (folderData.childrenLayouts) {
+            // Modify the copied data object, not the original state.
+            folderData.childrenLayouts = cleanAllLayouts(folderData.childrenLayouts);
+        }
+    }
+    return cleaned;
+};
+
 // Helper to strip any extraneous properties from widget and project objects before cloning/saving.
 const cleanProjectForSerialization = (project: Project): Project => {
-    const cleanWidget = (w: Widget): Widget => {
-        // Create a shallow copy of the data to prevent side effects on the original state object.
-        const dataCopy = { ...w.data };
-
-        const cleaned: Widget = {
-            id: w.id,
-            type: w.type,
-            data: dataCopy,
-            minW: w.minW,
-            minH: w.minH,
-        };
-        if (w.parentId) cleaned.parentId = w.parentId;
-        if (w.assignedUser !== undefined) cleaned.assignedUser = w.assignedUser;
-
-        if (cleaned.type === WidgetType.Folder) {
-            const folderData = cleaned.data as FolderData;
-            if (folderData.childrenLayouts) {
-                // Modify the copied data object, not the original state.
-                folderData.childrenLayouts = cleanAllLayouts(folderData.childrenLayouts);
-            }
-        }
-        return cleaned;
-    };
-
     const cleanedProject: Project = {
         id: project.id,
         name: project.name,
@@ -91,7 +92,7 @@ const cleanProjectForSerialization = (project: Project): Project => {
         member_uids: project.member_uids,
         participant_uids: project.participant_uids,
         isTeamProject: project.isTeamProject,
-        widgets: project.widgets.map(cleanWidget),
+        widgets: project.widgets.map(cleanWidgetForSerialization),
         layouts: cleanAllLayouts(project.layouts),
     };
     
@@ -238,7 +239,8 @@ const App: React.FC = () => {
     const fetchUsers = async () => {
         // FIX: Cast participant_uids to unknown[] to correctly use the type guard filter,
         // ensuring type safety for data coming from Firestore.
-        const uids = ((Array.isArray(activeProject.participant_uids) ? activeProject.participant_uids : []) as unknown[])
+        // FIX: Explicitly type `uids` as `string[]` to ensure TypeScript correctly infers the array type after filtering.
+        const uids: string[] = ((Array.isArray(activeProject.participant_uids) ? activeProject.participant_uids : []) as unknown[])
             .filter((uid: unknown): uid is string => typeof uid === 'string' && uid.length > 0);
 
         if (uids.length === 0) {
@@ -997,7 +999,7 @@ const App: React.FC = () => {
             return w;
         });
         
-        batch.update(projectRef, { widgets: widgetsToUpdate.map(cleanProjectForSerialization) });
+        batch.update(projectRef, { widgets: widgetsToUpdate.map(cleanWidgetForSerialization) });
         
         await batch.commit();
 

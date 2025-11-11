@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo, createContext, useContext } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GripVertical, Trash2, Plus, ChevronDown, ChevronUp, User, Copy, Edit3, MessageSquare, MoreHorizontal, ChevronRight, ArrowLeft, UserX, Check } from 'lucide-react';
+import { GripVertical, Trash2, Plus, ChevronDown, ChevronUp, User, Copy, Edit3, MessageSquare, MoreHorizontal, ChevronRight, ArrowLeft, UserX, Check, Folder } from 'lucide-react';
 import { FolderData, Widget, User as UserType, ProjectMemberRole, WidgetType } from '../types';
 import useResizeObserver from '../hooks/useResizeObserver';
 import { UnreadStatusContext } from './Dashboard';
@@ -31,18 +31,20 @@ interface WidgetWrapperProps {
   isTeamProject: boolean;
   isWidgetEditable: boolean;
   onToggleCommentPane: (widgetId: string | null) => void;
+  onMoveWidget: (widgetId: string, newParentId: string | null) => void;
+  allFolders?: Widget[];
 }
 
 const WidgetWrapper: React.FC<WidgetWrapperProps> = ({
   children, widget, onRemove, onCopy, onUpdateWidgetData,
   onToggleFolder, onInitiateAddWidget, isNested,
   currentUser, currentUserRole, projectUsers, isTeamProject, isWidgetEditable,
-  onToggleCommentPane
+  onToggleCommentPane, onMoveWidget, allFolders
 }) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState(widget.data.title || '');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [menuView, setMenuView] = useState<'main' | 'assign'>('main');
+  const [menuView, setMenuView] = useState<'main' | 'assign' | 'move'>('main');
   
   const menuRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
@@ -101,6 +103,18 @@ const WidgetWrapper: React.FC<WidgetWrapperProps> = ({
       handleMenuClose();
   }
 
+  const handleMoveToDashboard = () => {
+    onMoveWidget(widget.id, null);
+    handleMenuClose();
+  };
+
+  const handleMoveToFolder = (folderId: string) => {
+      onMoveWidget(widget.id, folderId);
+      handleMenuClose();
+  };
+
+  const availableFolders = allFolders?.filter(f => f.id !== widget.id) || [];
+
   const handleTitleBlur = () => {
     if (tempTitle.trim() !== '') {
       handleUpdate('title', tempTitle);
@@ -141,7 +155,7 @@ const WidgetWrapper: React.FC<WidgetWrapperProps> = ({
         />
 
         <div className="relative z-0 flex flex-col w-full h-full">
-            <div className={`drag-handle flex items-center h-12 px-4 ${isWidgetEditable && !isFolder ? 'cursor-grab' : 'cursor-default'} flex-shrink-0 border-b border-white/10`}>
+            <div className={`drag-handle flex items-center h-12 px-4 ${isWidgetEditable ? 'cursor-grab' : 'cursor-default'} flex-shrink-0 border-b border-white/10`}>
               <div className={`flex-grow flex items-center gap-2 min-w-0 ${isFolder && folderData?.isCollapsed ? 'justify-center' : ''}`} onDoubleClick={handleDoubleClick}>
                 {isFolder && onToggleFolder && (
                     <button onClick={onToggleFolder} className="p-1 -ml-1 rounded-full hover:bg-white/10 no-drag flex-shrink-0">
@@ -149,7 +163,7 @@ const WidgetWrapper: React.FC<WidgetWrapperProps> = ({
                     </button>
                 )}
                 {assignedUser && (
-                  <UserTooltip user={assignedUser}>
+                  <UserTooltip user={assignedUser} position={isNested ? 'bottom' : 'top'}>
                       <div className="flex-shrink-0">
                         <UserAvatar user={assignedUser} />
                       </div>
@@ -215,6 +229,20 @@ const WidgetWrapper: React.FC<WidgetWrapperProps> = ({
                                                 <ChevronRight size={14} />
                                             </button>
                                         )}
+                                         {isWidgetEditable && !isFolder && (
+                                            <>
+                                                {widget.parentId ? (
+                                                    <button onClick={handleMoveToDashboard} className="w-full flex items-center gap-3 text-left px-3 py-1.5 text-sm hover:bg-white/5 rounded-md">
+                                                        <ArrowLeft size={14} /> Переместить из папки
+                                                    </button>
+                                                ) : availableFolders.length > 0 && (
+                                                    <button onClick={() => setMenuView('move')} className="w-full flex items-center justify-between text-left px-3 py-1.5 text-sm hover:bg-white/5 rounded-md">
+                                                        <span className="flex items-center gap-3"><Folder size={14} /> Переместить в папку</span>
+                                                        <ChevronRight size={14} />
+                                                    </button>
+                                                )}
+                                            </>
+                                        )}
                                         {isCommentable && (
                                             <button onClick={() => { onToggleCommentPane(widget.id); handleMenuClose(); }} className="w-full flex items-center gap-3 text-left px-3 py-1.5 text-sm hover:bg-white/5 rounded-md relative">
                                                 <MessageSquare size={14} />Комментарии
@@ -227,7 +255,7 @@ const WidgetWrapper: React.FC<WidgetWrapperProps> = ({
                                             <button onClick={() => { onRemove(); handleMenuClose(); }} className="w-full flex items-center gap-3 text-left px-3 py-1.5 text-sm text-red-400 hover:bg-red-500/10 rounded-md"><Trash2 size={14} />Удалить</button>
                                         )}
                                     </motion.div>
-                                ) : (
+                                ) : menuView === 'assign' ? (
                                     <motion.div
                                         key="assign"
                                         initial={{ x: 10, opacity: 0 }}
@@ -254,13 +282,34 @@ const WidgetWrapper: React.FC<WidgetWrapperProps> = ({
                                             ))}
                                         </div>
                                     </motion.div>
+                                ) : (
+                                    <motion.div
+                                        key="move"
+                                        initial={{ x: 10, opacity: 0 }}
+                                        animate={{ x: 0, opacity: 1 }}
+                                        exit={{ x: 10, opacity: 0 }}
+                                        transition={{ duration: 0.15 }}
+                                        className="p-2"
+                                    >
+                                        <button onClick={() => setMenuView('main')} className="w-full flex items-center gap-2 text-left px-2 py-1.5 text-xs text-text-secondary hover:text-text-light rounded-md mb-2">
+                                            <ArrowLeft size={14} /> Назад
+                                        </button>
+                                        <div className="space-y-1 max-h-40 overflow-y-auto">
+                                            {availableFolders.map(folder => (
+                                                <button key={folder.id} onClick={() => handleMoveToFolder(folder.id)} className="w-full flex items-center gap-3 text-left px-3 py-1.5 text-sm hover:bg-white/5 rounded-md">
+                                                    <Folder size={14} />
+                                                    <span className="truncate">{folder.data.title}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </motion.div>
                                 )}
                                 </AnimatePresence>
                             </motion.div>
                         )}
                         </AnimatePresence>
                     </div>
-                    {!isFolder && isWidgetEditable && (<GripVertical className="cursor-grab text-text-secondary/30" size={18} />)}
+                    {isWidgetEditable && (<GripVertical className="cursor-grab text-text-secondary/30" size={18} />)}
                 </div>
             </div>
             <div className={`px-4 ${isFolder && folderData?.isCollapsed ? 'pb-0' : 'pb-4'} flex-grow overflow-hidden`}>
